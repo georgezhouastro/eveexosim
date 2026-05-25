@@ -12,7 +12,7 @@ https://drive.google.com/drive/folders/1qOMBFDkFTMt4chmUcUW7UFFT7miOuMJA?usp=sha
 
 ### Core Scripts
 * `forwardmodel.py`: Main execution script that runs the forward modeling simulation.
-* `readsnr.py`: Local module containing helper functions to read the planet recovery probability as a function of transit SNR.
+* `readsnr.py`: function to read the planet recovery probability as a function of transit SNR.
 
 ### Catalogs & Simulation Data
 * `Jan25_masterlist_roquette.csv`: Masterlist of all-sky young stars.
