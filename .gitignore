@@ -1,0 +1,22 @@
+# Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Temporary editor files and backups
+*~
+*.swp
+*.bak
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Virtual environments (just in case you ever build one locally)
+venv/
+env/
+.env
+
+# datafiles that are too big for github
+Jan25_masterlist_roquette.csv
+GasDwarfs_EVE_April_8.csv

@@ -1,0 +1,15 @@
+name: eveexosim
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - matplotlib=3.8.0
+  - pip:
+    - numpy==1.24.3
+    - pandas==2.1.4
+    - scipy==1.10.1
+    - pyphot==1.4.5
+    - minimint==0.4.1
+    - astroquery==0.4.6
