@@ -7,6 +7,29 @@ from scipy import interpolate
 ### astro dependencies
 import pyphot
 import minimint
+
+# Define the filters needed for the EVE forward model
+FILTERS = [
+    "Gaia_G_DR2Rev", "Gaia_BP_EDR3", 'Gaia_RP_EDR3', 
+    'TESS', '2MASS_J', '2MASS_H', '2MASS_Ks'
+]
+
+# Attempt to load the interpolator safely
+try:
+    ISO_INTERPOLATOR = minimint.Interpolator(FILTERS)
+    
+except (FileNotFoundError, RuntimeError):
+    print("Minimint isochrone grids not found locally. Downloading and preparing now...")
+    print("This will take 10-30 minutes but only needs to happen once per machine.")
+    
+    # Download the base MIST tracks and compile the specific requested filters
+    minimint.download_and_prepare(filters=FILTERS)
+    
+    # Initialize again now that the data is prepared
+    ISO_INTERPOLATOR = minimint.Interpolator(FILTERS)
+    print("Minimint grids successfully prepared and loaded.")
+
+
 from astroquery.mast import Catalogs
 
 ### local modules
@@ -145,9 +168,6 @@ def get_zero_points():
 
 ZPT = get_zero_points()
 
-# Initialize Minimint for isochrone interpolation
-FILTERS = ["Gaia_G_DR2Rev", "Gaia_BP_EDR3", 'Gaia_RP_EDR3', 'TESS', '2MASS_J', '2MASS_H', '2MASS_Ks']
-ISO_INTERPOLATOR = minimint.Interpolator(FILTERS)
 
 # Initialize SNR Curves
 snrcurves_conservative = readsnr.readsnr_conservative()
