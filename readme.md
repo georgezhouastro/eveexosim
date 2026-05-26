@@ -10,7 +10,6 @@ https://drive.google.com/drive/folders/1qOMBFDkFTMt4chmUcUW7UFFT7miOuMJA?usp=sha
 
 ## Repository Structure
 
-### Core Scripts
 * `forwardmodel.py`: Main execution script that runs the forward modeling simulation.
 * `readsnr.py`: function to read the planet recovery probability as a function of transit SNR.
 
