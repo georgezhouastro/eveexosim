@@ -14,10 +14,10 @@ https://drive.google.com/drive/folders/1qOMBFDkFTMt4chmUcUW7UFFT7miOuMJA?usp=sha
 * `readsnr.py`: function to read the planet recovery probability as a function of transit SNR.
 
 ### datasets
-* `Jan25_masterlist_roquette.csv`: Masterlist of all-sky young stars.
+* `Jan25_masterlist_roquette.csv`: DOWNLOAD THIS FROM MY GOOGLEDRIVE Masterlist of all-sky young stars.
 * `roquette_rms.csv`: RMS of the ORION SFR stars from TESS.
 * `spoc_rms_age.csv`: RMS of other young stars from TESS (as per Vach et al.).
-* `GasDwarfs_EVE_April_8.csv`: Gas dwarf input planet population.
+* `GasDwarfs_EVE_April_8.csv`: DOWNLOAD THIS FROM MY GOOGLEDRIVE Gas dwarf input planet population.
 * `EVESNR.csv`: EVE instrument flux vs. SNR curve.
 * `targetregions_20260410.csv`: Latest survey target fields.
 * `snrcurves/`: Directory containing SNR vs. transit recovery probability curves.
