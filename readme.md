@@ -14,7 +14,7 @@ https://drive.google.com/drive/folders/1qOMBFDkFTMt4chmUcUW7UFFT7miOuMJA?usp=sha
 * `forwardmodel.py`: Main execution script that runs the forward modeling simulation.
 * `readsnr.py`: function to read the planet recovery probability as a function of transit SNR.
 
-### Catalogs & Simulation Data
+### datasets
 * `Jan25_masterlist_roquette.csv`: Masterlist of all-sky young stars.
 * `roquette_rms.csv`: RMS of the ORION SFR stars from TESS.
 * `spoc_rms_age.csv`: RMS of other young stars from TESS (as per Vach et al.).
@@ -23,11 +23,10 @@ https://drive.google.com/drive/folders/1qOMBFDkFTMt4chmUcUW7UFFT7miOuMJA?usp=sha
 * `targetregions_20260410.csv`: Latest survey target fields.
 * `snrcurves/`: Directory containing SNR vs. transit recovery probability curves.
 * `tic_query_fields/`: Local cache for TESS Input Catalog (TIC) for EVE target fields.
+* `MINIMINT_DATA/`: isochrone data files
 
-### Outputs & Environment
+### Outputs
 * `gasdwarf_sim/`: Directory containing simulation outputs.
-* `environment.yml`: Conda environment file required to replicate dependencies.
-* `readme.md`: This file.
 
 ---
 
