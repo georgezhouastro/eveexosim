@@ -6,7 +6,7 @@ Forward modeling of planet yields for the EVE mission.
 
 ### ATTENTION! YOU ALSO NEED some CSVs that are too big for github. Download them from my google drive and put them in the code directory!
 
-https://drive.google.com/drive/folders/1qOMBFDkFTMt4chmUcUW7UFFT7miOuMJA?usp=sharing
+https://drive.google.com/drive/folders/1LN0PZx-7ItXbETX66b-gGpUYwfG5m-X1?usp=sharing
 
 ## Repository Structure
 
