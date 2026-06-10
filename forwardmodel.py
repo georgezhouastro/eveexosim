@@ -4,9 +4,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy import interpolate
 
-### astro dependencies
-import pyphot
-
 os.environ["MINIMINT_DATA_PATH"] = "MINIMINT_DATA"
 import minimint
 
@@ -52,20 +49,35 @@ def querytic(ra,dec,radius=9):
 
     return catalog_data
 
-def prepareinputfields(df, fov=5.0): 
-    targetfields = pd.read_csv("targetregions_20260410.csv")
 
-    # Hard-coded indices for the chosen fields in the excel spreadsheet
-    index = (
-        np.array([
-            2, 3, 15, 16, 23, 34, 9, 10, 11, 13, 29, 24, 18, 37, 39, 43, 46,
-            60, 7, 20, 22, 27, 35, 44, 52, 55, 14, 17, 42, 45,
-        ])
-        - 2
-    )
 
-    targetfields = targetfields.iloc[index]
-    targetfields = targetfields.reset_index(drop=True)
+def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None): 
+
+    if custom_ra is not None and custom_dec is not None:
+        # Override with user-provided coordinates
+        targetfields = pd.DataFrame({"FieldRA": [custom_ra], "FieldDEC": [custom_dec]})
+    else:
+        # Load from CSV if no custom coordinates are provided
+        targetfields = pd.read_csv("targetregions_simplified_20260611.csv")
+        targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
+        targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
+        targetfields = targetfields.dropna(subset=['FieldRA', 'FieldDEC']).reset_index(drop=True)
+
+
+    if False: ### This is using old target fields
+        targetfields = pd.read_csv("targetregions_20260410.csv")
+
+        # Hard-coded indices for the chosen fields in the excel spreadsheet
+        index = (
+            np.array([
+                2, 3, 15, 16, 23, 34, 9, 10, 11, 13, 29, 24, 18, 37, 39, 43, 46,
+                60, 7, 20, 22, 27, 35, 44, 52, 55, 14, 17, 42, 45,
+            ])
+            - 2
+        )
+
+        targetfields = targetfields.iloc[index]
+        targetfields = targetfields.reset_index(drop=True)
 
     nobs = np.zeros(len(df))
 
@@ -76,8 +88,9 @@ def prepareinputfields(df, fov=5.0):
     fieldlist = np.zeros(len(df))
 
     for i in range(len(targetfields)):
-        ra_target = targetfields["FieldRA"].iloc[i]
-        dec_target = targetfields["FieldDEC"].iloc[i]
+        ra_target = float(targetfields["FieldRA"].iloc[i])
+        dec_target = float(targetfields["FieldDEC"].iloc[i])
+
 
         mask = (
             abs(df["ra"] - ra_target) * np.cos(df["dec"] * np.pi / 180) < fov / 2.0
@@ -141,18 +154,27 @@ def determinedilution(sample,n,tic_catalog_field, psf=10):
     return fluxratio
 
 
-### photometric zero points
-def get_zero_points():
+def get_zero_points(cache_file='zero_points.npy'):
+    if os.path.exists(cache_file):
+        return np.load(cache_file, allow_pickle=True).item()
+    
+    import pyphot 
     lib = pyphot.get_library()
+    
     def extract_zp(filter_name):
         return float(str(lib[filter_name].Vega_zero_flux).split(" ")[0])
     
-    return {
+    zps = {
         'J': extract_zp('2MASS_J'),
         'H': extract_zp('2MASS_H'),
         'K': extract_zp('2MASS_Ks'),
         'TESS': extract_zp('TESS')
     }
+    
+    np.save(cache_file, zps)
+        
+    return zps
+
 
 ZPT = get_zero_points()
 
@@ -251,7 +273,8 @@ def get_snr_curve_key(teff, age):
     return f"snr_{age_str}_{sp_type}"
 
 
-def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=True, useIR=True, fov=5, psf=5):
+
+def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=True, useIR=True, fov=5, psf=5, custom_ra=None, custom_dec=None):
     """
     injection and recovery
     """
@@ -262,9 +285,10 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
     synthetic = synthetic_raw.copy()
     synthetic['tic'] = pd.to_numeric(synthetic['tic'])
     synthetic = synthetic.drop_duplicates('tic').sample(frac=0.7) #### draw 0.7 planets per star
-    
+
+
     df = synthetic.merge(masterlist, on='tic', suffixes=('', '_y'))
-    df,tic_catalog_list = prepareinputfields(df,fov=fov) ### trim input catalog to only the fields obs by EVE
+    df, tic_catalog_list = prepareinputfields(df, fov=fov, custom_ra=custom_ra, custom_dec=custom_dec)  ### trim input catalog to only the fields obs by EVE
     
     results = {
         'T_retrieve': np.zeros(len(df)),
@@ -395,7 +419,9 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
     return df
 
 
-def run_simulation_suite(eve_df,baseline, draws=1,useUV=True,useIR=True, fov=5, psf=10):
+
+
+def run_simulation_suite(eve_df, baseline, draws=1, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None):
 
     spoc_df = pd.read_csv(FILE_PATHS["spoc_rms"])
     orion_df = pd.read_csv(FILE_PATHS["orion_rms"])
@@ -418,6 +444,9 @@ def run_simulation_suite(eve_df,baseline, draws=1,useUV=True,useIR=True, fov=5, 
     folder_name = f"{base_out}/gasdwarf{int(baseline)}d"
     os.makedirs(folder_name, exist_ok=True)
 
+
+
+
     print(f"Running scenario: {baseline} days")
     for i in range(draws):
         print(f"  --> Draw {i+1}/{draws}...")
@@ -429,12 +458,13 @@ def run_simulation_suite(eve_df,baseline, draws=1,useUV=True,useIR=True, fov=5, 
             useUV=True,
             useIR=True,
             fov=fov,
-            psf=psf
+            psf=psf,
+            custom_ra=custom_ra,    # Pass through
+            custom_dec=custom_dec   # Pass through
         )
         final_df.to_csv(os.path.join(folder_name, f"{i}.csv"), index=False)
                 
     print("Simulations complete!")
-
     return os.path.join(folder_name, f"{i}.csv")
     
 def simulation_summary(filepath):
@@ -468,17 +498,59 @@ def simulation_summary(filepath):
     
 
 
+def field_yield_summary(filepath, fov=5.0, custom_ra=None, custom_dec=None):
+    df = pd.read_csv(filepath)
+    df = df[(df['T_retrieve'] == 1) & (df['age'] < 50)]
+    
+    if custom_ra is not None and custom_dec is not None:
+        targetfields = pd.DataFrame({"FieldRA": [custom_ra], "FieldDEC": [custom_dec]})
+    else:
+        try:
+            targetfields = pd.read_csv("targetregions_simplified_20260611.csv")
+            targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
+            targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
+            targetfields = targetfields.dropna(subset=['FieldRA', 'FieldDEC'])
+        except FileNotFoundError:
+            print("Error: targetregions_simplified_20260611.csv not found.")
+            return
+
+    print("\n--- Young Planet Yield (<50 Myr) by Target Field ---")
+    
+    seen_tics = set()
+    
+    for i, row in targetfields.iterrows():
+        ra_target = row["FieldRA"]
+        dec_target = row["FieldDEC"]
+        
+        # 3. Find planets geometrically located in this specific field
+        mask_ra = abs(df["ra"] - ra_target) * np.cos(df["dec"] * np.pi / 180) < fov / 2.0
+        mask_dec = abs(df["dec"] - dec_target) < fov / 2.0
+        planets_in_field = df[mask_ra & mask_dec]
+        N_planets_in_field = len(df[mask_ra & mask_dec])
+        
+        # 4. Filter out any planets (TICs) we've already counted in earlier fields
+        new_planets = planets_in_field[~planets_in_field['tic'].isin(seen_tics)]
+        new_yield = len(new_planets)
+        
+        # 5. Update tracker and totals
+        seen_tics.update(new_planets['tic'].tolist())
+        
+        print(f"Field {i:02d} (RA: {ra_target:6.2f}, DEC: {dec_target:6.2f}) | "
+              f"New Planets: {new_yield:3d} | Total planets in field: {N_planets_in_field:4d}")
+        
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Forward model simulation for EVE exoplanet yield.")
     
-    # Add numerical arguments with defaults
     parser.add_argument("--baseline", type=float, default=30, help="Baseline in days (default: 30 days)")
     parser.add_argument("--fov", type=float, default=5, help="Field of view (default: 5 deg)")
     parser.add_argument("--psf", type=float, default=10, help="PSF in arcsec (default: 10 arcsec)")
     parser.add_argument("--draws", type=int, default=1, help="Number of random draws to perform (default: 1x draw)")
     
-    # Add file path argument with FILE_PATHS dict as the default
+    parser.add_argument("--ra", type=float, default=None, help="Custom RA for a single target field")
+    parser.add_argument("--dec", type=float, default=None, help="Custom DEC for a single target field")
+    
     parser.add_argument(
         "--eve_snr_model", 
         type=str, 
@@ -488,19 +560,28 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    # Map the parsed arguments to your original variable names (optional, but keeps the rest of your code working)
     BASELINE = args.baseline
     FOV = args.fov
     PSF = args.psf
     DRAWS = args.draws
+    CUSTOM_RA = args.ra
+    CUSTOM_DEC = args.dec
 
-    #### read in the RMS model
+    # Optional: Quick validation
+    if (CUSTOM_RA is None) != (CUSTOM_DEC is None):
+        parser.error("You must provide BOTH --ra and --dec, or NEITHER.")
+
     eve_df = pd.read_csv(args.eve_snr_model, delim_whitespace=True)
-    
-
 
     ### run the simulation
-    sampleresultcsv = run_simulation_suite(eve_df,BASELINE, draws=DRAWS, useUV=True, useIR=True, fov=FOV, psf=PSF)
+    sampleresultcsv = run_simulation_suite(
+        eve_df, BASELINE, draws=DRAWS, useUV=True, useIR=True, fov=FOV, psf=PSF, 
+        custom_ra=CUSTOM_RA, custom_dec=CUSTOM_DEC
+    )
 
     ### provide simulation summary
     simulation_summary(sampleresultcsv)
+
+    ### provide field-by-field yield breakdown
+    field_yield_summary(sampleresultcsv, fov=FOV, custom_ra=CUSTOM_RA, custom_dec=CUSTOM_DEC)
+
