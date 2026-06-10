@@ -39,13 +39,18 @@ https://drive.google.com/drive/folders/1LN0PZx-7ItXbETX66b-gGpUYwfG5m-X1?usp=sha
    conda env create -f environment.yml
    conda activate eveexosim
 
-   python forwardmodel.py
+   python forwardmodel.py ### to run the whole set of fields
+    
+
+
+
+   python forwardmodel.py --ra=84.12 --dec=-4.73 ### to run one field
 
 
 
 
-usage: forwardmodel.py [-h] [--baseline BASELINE] [--fov FOV] [--psf PSF]
-                       [--draws DRAWS] [--eve_snr_model EVE_SNR_MODEL]
+usage: forwardmodel.py [-h] [--baseline BASELINE] [--fov FOV] [--psf PSF] [--draws DRAWS]
+                       [--ra RA] [--dec DEC] [--eve_snr_model EVE_SNR_MODEL]
 
 Forward model simulation for EVE exoplanet yield.
 
@@ -55,6 +60,8 @@ optional arguments:
   --fov FOV             Field of view (default: 5 deg)
   --psf PSF             PSF in arcsec (default: 10 arcsec)
   --draws DRAWS         Number of random draws to perform (default: 1x draw)
+  --ra RA               Custom RA for a single target field
+  --dec DEC             Custom DEC for a single target field
   --eve_snr_model EVE_SNR_MODEL
                         Path to the instrument flux vs snr (default: EVESNR.csv)
 
