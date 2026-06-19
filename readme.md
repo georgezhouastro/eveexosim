@@ -46,11 +46,12 @@ https://drive.google.com/drive/folders/1LN0PZx-7ItXbETX66b-gGpUYwfG5m-X1?usp=sha
 
    python forwardmodel.py --ra=84.12 --dec=-4.73 ### to run one field
 
+   ### if you want to see how SNR changes yields, use the scalar terms to tweak snr curve linearly
+   python forwardmodel.py --snr_optical_scalar=1.3 ### mulply snr by 1.3 linearly
 
+usage: forwardmodel.py [-h] [--baseline BASELINE] [--fov FOV] [--psf PSF] [--ra RA] [--dec DEC]
+                       [--snr_optical_scalar SNR_OPTICAL_SCALAR] [--snr_ir_scalar SNR_IR_SCALAR]
 
-
-usage: forwardmodel.py [-h] [--baseline BASELINE] [--fov FOV] [--psf PSF] [--draws DRAWS]
-                       [--ra RA] [--dec DEC] [--eve_snr_model EVE_SNR_MODEL]
 
 Forward model simulation for EVE exoplanet yield.
 
@@ -59,9 +60,14 @@ optional arguments:
   --baseline BASELINE   Baseline in days (default: 30 days)
   --fov FOV             Field of view (default: 5 deg)
   --psf PSF             PSF in arcsec (default: 10 arcsec)
-  --draws DRAWS         Number of random draws to perform (default: 1x draw)
   --ra RA               Custom RA for a single target field
   --dec DEC             Custom DEC for a single target field
-  --eve_snr_model EVE_SNR_MODEL
-                        Path to the instrument flux vs snr (default: EVESNR.csv)
+  --snr_optical_scalar SNR_OPTICAL_SCALAR
+                        Multiplier for optical SNR (default: 1.0)
+  --snr_ir_scalar SNR_IR_SCALAR
+                        Multiplier for IR SNR (default: 1.0)
+
+
+
+
 
