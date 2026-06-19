@@ -3,7 +3,6 @@ import ast
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from scipy import interpolate
 from astroquery.mast import Catalogs
 
 os.environ["MINIMINT_DATA_PATH"] = "MINIMINT_DATA"
@@ -19,9 +18,8 @@ ISO_INTERPOLATOR = minimint.Interpolator(FILTERS)
 ### local modules
 import readsnr  
 
-### data files
+### data files (Removed eve_snr_model since it's obsolete)
 FILE_PATHS = {
-    "eve_snr_model": "EVESNR.csv", 
     "spoc_rms": "spoc_rms_age.csv", 
     "orion_rms": "roquette_rms.csv",
     "master_list": "Jan25_masterlist_roquette.csv",
@@ -56,6 +54,7 @@ def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None):
         targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
         targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
         targetfields = targetfields.dropna(subset=['FieldRA', 'FieldDEC']).reset_index(drop=True)
+
 
     output_dir = "tic_query_fields"
     os.makedirs(output_dir, exist_ok=True)
@@ -160,7 +159,7 @@ def calc_tess_rms(tmag):
     return half_hr_ppm * np.sqrt(15) * 1e-6
 
 
-def prepare_rms_interpolators(eve_optical, eve_ir, eve_df, spoc_df, orion_df):
+def prepare_rms_interpolators(spoc_df, orion_df):
     spoc_df = spoc_df[spoc_df['tmag'] > 10].copy()
     resfactor = spoc_df['sigma'] / calc_tess_rms(spoc_df['tmag'])
     rms_dist = pd.DataFrame({
@@ -178,7 +177,7 @@ def prepare_rms_interpolators(eve_optical, eve_ir, eve_df, spoc_df, orion_df):
         'age': orion_df['age']
     }).dropna()
 
-    return eve_optical, eve_ir, rms_dist, rms_dist_orion
+    return rms_dist, rms_dist_orion
 
 
 def calc_transit_snr(period_days, mstar_solar, rstar_solar, rp_earth, b, baseline_days, sigma, dilution):
@@ -209,8 +208,8 @@ def get_snr_curve_key(teff, age):
     return f"snr_{age_str}_{sp_type}"
 
 
-def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=True, useIR=True, fov=5, psf=5, custom_ra=None, custom_dec=None):
-    eve_opt, eve_ir, rms_dist, rms_dist_orion = interpolator_pack
+def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=True, useIR=True, fov=5, psf=5, custom_ra=None, custom_dec=None, snr_optical_scalar=1.0, snr_ir_scalar=1.0):
+    rms_dist, rms_dist_orion = interpolator_pack
 
     masterlist = master_raw.drop_duplicates('tic')
     synthetic = synthetic_raw.copy()
@@ -250,19 +249,32 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         nobs = row.nobs
 
         TESS_flux = 10**(tmag / -2.5) * ZPT['TESS'] * 4000
-        iso = ISO_INTERPOLATOR(mstar, np.log10(age * 1e6), 0)
-        
-        TESS_isocor = 10**(iso['TESS'] / -2.5) * ZPT['TESS']
-        J_isocor = 10**(iso['2MASS_J'] / -2.5) * ZPT['J']
-        H_isocor = 10**(iso['2MASS_H'] / -2.5) * ZPT['H']
-        K_isocor = 10**(iso['2MASS_Ks'] / -2.5) * ZPT['K']
 
-        Jflux = TESS_flux * (J_isocor / TESS_isocor)
-        Hflux = TESS_flux * (H_isocor / TESS_isocor)
-        Kflux = TESS_flux * (K_isocor / TESS_isocor)
+        """
+        The exo formula given flux in erg/s/cm2
+        SNR = a*b*flux / sqrt(b*flux + c)
+        VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
+        NIR: a = 5.16, b = 1.39e14, c = 441.0
+        """
+        eve_opt = [4.22, 1.45e14, 49.05]
+        eve_ir = [5.16, 1.39e14, 441.0]
 
-        sigma_optical = 10**interpolate.splev([np.log10(TESS_flux)], eve_opt)[0]
-        sigma_IR = 10**interpolate.splev([np.log10(Jflux + Kflux)], eve_ir)[0]
+        snr_optical = eve_opt[0] * eve_opt[1] * TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
+        snr_optical *= snr_optical_scalar
+
+        if snr_optical > 297.7: ### saturation
+            snr_optical = 297.7
+        if snr_optical < 0.1:### so it doesn't go below 0
+            snr_optical = 0.1 
+
+        snr_IR = eve_ir[0] * eve_ir[1] * TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
+        snr_IR *= snr_ir_scalar
+
+        if snr_IR < 0.1:
+            snr_IR = 0.1
+
+        sigma_optical = 1/snr_optical
+        sigma_IR = 1/snr_IR
 
         age_mask = (rms_dist["age"] >= 0)
         if age < 30: age_mask &= (rms_dist["age"] < 30)
@@ -355,7 +367,7 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
     return df
 
 
-def run_simulation_suite(eve_df, baseline, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None):
+def run_simulation_suite(baseline, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None, snr_optical_scalar=1.0, snr_ir_scalar=1.0):
     spoc_df = pd.read_csv(FILE_PATHS["spoc_rms"])
     orion_df = pd.read_csv(FILE_PATHS["orion_rms"])
     orion_df['age'] = 10
@@ -363,10 +375,9 @@ def run_simulation_suite(eve_df, baseline, useUV=True, useIR=True, fov=5, psf=10
     master_raw = pd.read_csv(FILE_PATHS["master_list"])
     synthetic_raw = pd.read_csv(FILE_PATHS["synthetic_planets"])
 
-    print("Load snr cruve")
-    eve_optical = interpolate.splrep(np.log10(eve_df['Flux']), np.log10(1/eve_df['SNROP']), k=1)
-    eve_ir = interpolate.splrep(np.log10(eve_df['Flux']), np.log10(1/eve_df['SNRIR']), k=1)
-    interpolator_pack = prepare_rms_interpolators(eve_optical,eve_ir,eve_df, spoc_df, orion_df)
+    print("Load snr curve")
+    
+    interpolator_pack = prepare_rms_interpolators(spoc_df, orion_df)
 
     base_out = FILE_PATHS["output_dir_base"]
     os.makedirs(base_out, exist_ok=True)
@@ -380,7 +391,8 @@ def run_simulation_suite(eve_df, baseline, useUV=True, useIR=True, fov=5, psf=10
         synthetic_raw=synthetic_raw, 
         interpolator_pack=interpolator_pack,
         useUV=useUV, useIR=useIR, fov=fov, psf=psf,
-        custom_ra=custom_ra, custom_dec=custom_dec
+        custom_ra=custom_ra, custom_dec=custom_dec,
+        snr_optical_scalar=snr_optical_scalar, snr_ir_scalar=snr_ir_scalar
     )
     final_df.to_csv(os.path.join(folder_name, f"0.csv"), index=False)
                 
@@ -425,6 +437,7 @@ def field_yield_summary(filepath, fov=5.0, custom_ra=None, custom_dec=None):
             targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
             targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
             targetfields = targetfields.dropna(subset=['FieldRA', 'FieldDEC'])
+
         except FileNotFoundError:
             print("Error: targetregions_simplified_20260611.csv not found.")
             return
@@ -473,12 +486,8 @@ if __name__ == "__main__":
     parser.add_argument("--psf", type=float, default=10, help="PSF in arcsec (default: 10 arcsec)")
     parser.add_argument("--ra", type=float, default=None, help="Custom RA for a single target field")
     parser.add_argument("--dec", type=float, default=None, help="Custom DEC for a single target field")
-    parser.add_argument(
-        "--eve_snr_model", 
-        type=str, 
-        default=FILE_PATHS["eve_snr_model"], 
-        help="Path to the instrument flux vs snr (default: "+FILE_PATHS["eve_snr_model"]+")"
-    )
+    parser.add_argument("--snr_optical_scalar", type=float, default=1.0, help="Multiplier for optical SNR (default: 1.0)")
+    parser.add_argument("--snr_ir_scalar", type=float, default=1.0, help="Multiplier for IR SNR (default: 1.0)")
     
     args = parser.parse_args()
 
@@ -491,11 +500,11 @@ if __name__ == "__main__":
     if (CUSTOM_RA is None) != (CUSTOM_DEC is None):
         parser.error("You must provide BOTH --ra and --dec, or NEITHER.")
 
-    eve_df = pd.read_csv(args.eve_snr_model, delim_whitespace=True)
-
     sampleresultcsv = run_simulation_suite(
-        eve_df, BASELINE, useUV=True, useIR=True, fov=FOV, psf=PSF, 
-        custom_ra=CUSTOM_RA, custom_dec=CUSTOM_DEC
+        BASELINE, useUV=True, useIR=True, fov=FOV, psf=PSF, 
+        custom_ra=CUSTOM_RA, custom_dec=CUSTOM_DEC,
+        snr_optical_scalar=args.snr_optical_scalar, 
+        snr_ir_scalar=args.snr_ir_scalar
     )
 
     simulation_summary(sampleresultcsv)
