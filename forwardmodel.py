@@ -18,14 +18,6 @@ ISO_INTERPOLATOR = minimint.Interpolator(FILTERS)
 ### local modules
 import readsnr  
 
-### data files (Removed eve_snr_model since it's obsolete)
-FILE_PATHS = {
-    "spoc_rms": "spoc_rms_age.csv", 
-    "orion_rms": "roquette_rms.csv",
-    "master_list": "Jan25_masterlist_roquette.csv",
-    "synthetic_planets": "GasDwarfs_EVE_April_8.csv",
-    "output_dir_base": "gasdwarf_sim"
-}
 
 R_EARTH = 6.37e6       # meters
 M_SUN = 2e30           # kg
@@ -56,6 +48,8 @@ def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None):
         targetfields = targetfields.dropna(subset=['FieldRA', 'FieldDEC']).reset_index(drop=True)
 
 
+        #targetfields = targetfields.loc[np.repeat(targetfields.index, 3)].reset_index(drop=True)
+
     output_dir = "tic_query_fields"
     os.makedirs(output_dir, exist_ok=True)
 
@@ -69,6 +63,7 @@ def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None):
 
         mask = (abs(df["ra"] - ra_target) * np.cos(df["dec"] * np.pi / 180) < fov / 2.0)
         mask &= (abs(df["dec"] - dec_target) < fov / 2.0)
+
         
         mask_indices = np.where(mask)[0]
         for idx in mask_indices:
@@ -218,6 +213,7 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
 
     df = synthetic.merge(masterlist, on='tic', suffixes=('', '_y'))
     df, tic_catalog_list = prepareinputfields(df, fov=fov, custom_ra=custom_ra, custom_dec=custom_dec)
+
     
     if len(df) == 0:
         return df
@@ -367,7 +363,7 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
     return df
 
 
-def run_simulation_suite(baseline, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None, snr_optical_scalar=1.0, snr_ir_scalar=1.0):
+def run_simulation_suite(baseline, FILE_PATHS, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None, snr_optical_scalar=1.0, snr_ir_scalar=1.0):
     spoc_df = pd.read_csv(FILE_PATHS["spoc_rms"])
     orion_df = pd.read_csv(FILE_PATHS["orion_rms"])
     orion_df['age'] = 10
@@ -478,6 +474,17 @@ def field_yield_summary(filepath, fov=5.0, custom_ra=None, custom_dec=None):
 
 
 if __name__ == "__main__":
+
+
+    ### data files (Removed eve_snr_model since it's obsolete)
+    FILE_PATHS = {
+        "spoc_rms": "spoc_rms_age.csv", 
+        "orion_rms": "roquette_rms.csv",
+        "master_list": "Jan25_masterlist_roquette.csv",
+        "synthetic_planets": "GasDwarfs_EVE_April_8.csv",
+        "output_dir_base": "gasdwarf_sim"
+    }
+
     import argparse
     parser = argparse.ArgumentParser(description="Forward model simulation for EVE exoplanet yield.")
     
@@ -488,8 +495,18 @@ if __name__ == "__main__":
     parser.add_argument("--dec", type=float, default=None, help="Custom DEC for a single target field")
     parser.add_argument("--snr_optical_scalar", type=float, default=1.0, help="Multiplier for optical SNR (default: 1.0)")
     parser.add_argument("--snr_ir_scalar", type=float, default=1.0, help="Multiplier for IR SNR (default: 1.0)")
+    parser.add_argument(
+        "--waterworld", 
+        action="store_true", 
+        help="Simulate water worlds (defaults to gas dwarf unless flag is selected)"
+    )
     
     args = parser.parse_args()
+
+    ### update file paths if we decide to sim waterdwarfs
+    FILE_PATHS["synthetic_planets"] = "WaterWorlds_EVE.csv"
+    FILE_PATHS["output_dir_base"] = "waterworld_sim"
+
 
     BASELINE = args.baseline
     FOV = args.fov
@@ -501,7 +518,7 @@ if __name__ == "__main__":
         parser.error("You must provide BOTH --ra and --dec, or NEITHER.")
 
     sampleresultcsv = run_simulation_suite(
-        BASELINE, useUV=True, useIR=True, fov=FOV, psf=PSF, 
+        BASELINE, FILE_PATHS,useUV=True, useIR=True, fov=FOV, psf=PSF, 
         custom_ra=CUSTOM_RA, custom_dec=CUSTOM_DEC,
         snr_optical_scalar=args.snr_optical_scalar, 
         snr_ir_scalar=args.snr_ir_scalar
