@@ -377,7 +377,7 @@ def run_simulation_suite(baseline, FILE_PATHS, useUV=True, useIR=True, fov=5, ps
 
     base_out = FILE_PATHS["output_dir_base"]
     os.makedirs(base_out, exist_ok=True)
-    folder_name = f"{base_out}/gasdwarf{int(baseline)}d"
+    folder_name = f"{base_out}/baseline_{int(baseline)}d"
     os.makedirs(folder_name, exist_ok=True)
 
     print(f"Running scenario: {baseline} days")
