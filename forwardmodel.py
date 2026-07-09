@@ -42,7 +42,9 @@ def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None):
     if custom_ra is not None and custom_dec is not None:
         targetfields = pd.DataFrame({"FieldRA": [custom_ra], "FieldDEC": [custom_dec]})
     else:
-        targetfields = pd.read_csv("targetregions_simplified_20260611.csv")
+        #targetfields = pd.read_csv("targetregions_simplified_20260611.csv")
+        targetfields = pd.read_csv("targetregions_23fields_20260709.csv")
+        print(targetfields)
         targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
         targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
         targetfields = targetfields.dropna(subset=['FieldRA', 'FieldDEC']).reset_index(drop=True)
@@ -246,14 +248,24 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
 
         TESS_flux = 10**(tmag / -2.5) * ZPT['TESS'] * 4000
 
-        """
-        The exo formula given flux in erg/s/cm2
-        SNR = a*b*flux / sqrt(b*flux + c)
+        # """
+        # The exo formula given flux in erg/s/cm2
+        # SNR = a*b*flux / sqrt(b*flux + c)
+        # VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
+        # NIR: a = 5.16, b = 1.39e14, c = 441.0
+        # """
+        eve_opt = [4.22, 1.45e14, 49.05]
+        eve_ir = [5.16, 1.39e14, 441.0]
+
+
+        """ The updated exo formula given flux in erg/s/cm2
+        SNR = a*flux / sqrt(b*flux + c)
         VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
         NIR: a = 5.16, b = 1.39e14, c = 441.0
         """
-        eve_opt = [4.22, 1.45e14, 49.05]
-        eve_ir = [5.16, 1.39e14, 441.0]
+        #eve_opt = [7.76E14, 1.23E14, 1.86E01]
+        #eve_ir = [1.32E14, 2.20E12, 6.07E00]
+
 
         snr_optical = eve_opt[0] * eve_opt[1] * TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
         snr_optical *= snr_optical_scalar
@@ -488,7 +500,7 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Forward model simulation for EVE exoplanet yield.")
     
-    parser.add_argument("--baseline", type=float, default=30, help="Baseline in days (default: 30 days)")
+    parser.add_argument("--baseline", type=float, default=45, help="Baseline in days (default: 45 days)")
     parser.add_argument("--fov", type=float, default=5, help="Field of view (default: 5 deg)")
     parser.add_argument("--psf", type=float, default=10, help="PSF in arcsec (default: 10 arcsec)")
     parser.add_argument("--ra", type=float, default=None, help="Custom RA for a single target field")
@@ -503,9 +515,11 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
 
-    ### update file paths if we decide to sim waterdwarfs
-    FILE_PATHS["synthetic_planets"] = "WaterWorlds_EVE.csv"
-    FILE_PATHS["output_dir_base"] = "waterworld_sim"
+
+    if args.waterworld:
+        ### update file paths if we decide to sim waterdwarfs
+        FILE_PATHS["synthetic_planets"] = "WaterWorlds_EVE.csv"
+        FILE_PATHS["output_dir_base"] = "waterworld_sim"
 
 
     BASELINE = args.baseline
