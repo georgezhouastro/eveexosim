@@ -18,6 +18,7 @@ https://drive.google.com/drive/folders/1LN0PZx-7ItXbETX66b-gGpUYwfG5m-X1?usp=sha
 * `roquette_rms.csv`: RMS of the ORION SFR stars from TESS.
 * `spoc_rms_age.csv`: RMS of other young stars from TESS (as per Vach et al.).
 * `GasDwarfs_EVE_April_8.csv`: DOWNLOAD THIS FROM MY GOOGLEDRIVE Gas dwarf input planet population.
+* `WaterWorld_EVE.csv`: DOWNLOAD THIS FROM MY GOOGLEDRIVE Water world input planet population.
 * `EVESNR.csv`: EVE instrument flux vs. SNR curve.
 * `targetregions_20260410.csv`: Latest survey target fields.
 * `snrcurves/`: Directory containing SNR vs. transit recovery probability curves.
@@ -40,18 +41,20 @@ https://drive.google.com/drive/folders/1LN0PZx-7ItXbETX66b-gGpUYwfG5m-X1?usp=sha
    conda activate eveexosim
 
    python forwardmodel.py ### to run the whole set of fields
-    
-
-
 
    python forwardmodel.py --ra=84.12 --dec=-4.73 ### to run one field
 
    ### if you want to see how SNR changes yields, use the scalar terms to tweak snr curve linearly
    python forwardmodel.py --snr_optical_scalar=1.3 ### mulply snr by 1.3 linearly
 
-usage: forwardmodel.py [-h] [--baseline BASELINE] [--fov FOV] [--psf PSF] [--ra RA] [--dec DEC]
-                       [--snr_optical_scalar SNR_OPTICAL_SCALAR] [--snr_ir_scalar SNR_IR_SCALAR]
 
+   python fowardmodel.py --waterworld ### run the water world models
+
+
+usage: forwardmodel.py [-h] [--baseline BASELINE] [--fov FOV] [--psf PSF]
+                       [--ra RA] [--dec DEC]
+                       [--snr_optical_scalar SNR_OPTICAL_SCALAR]
+                       [--snr_ir_scalar SNR_IR_SCALAR] [--waterworld]
 
 Forward model simulation for EVE exoplanet yield.
 
@@ -66,8 +69,6 @@ optional arguments:
                         Multiplier for optical SNR (default: 1.0)
   --snr_ir_scalar SNR_IR_SCALAR
                         Multiplier for IR SNR (default: 1.0)
-
-
-
-
+  --waterworld          Simulate water worlds (defaults to gas dwarf unless
+                        flag is selected)
 
