@@ -254,8 +254,8 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         # VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
         # NIR: a = 5.16, b = 1.39e14, c = 441.0
         # """
-        eve_opt = [4.22, 1.45e14, 49.05]
-        eve_ir = [5.16, 1.39e14, 441.0]
+        # eve_opt = [4.22, 1.45e14, 49.05]
+        # eve_ir = [5.16, 1.39e14, 441.0]
 
 
         """ The updated exo formula given flux in erg/s/cm2
@@ -263,11 +263,12 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
         NIR: a = 5.16, b = 1.39e14, c = 441.0
         """
-        #eve_opt = [7.76E14, 1.23E14, 1.86E01]
-        #eve_ir = [1.32E14, 2.20E12, 6.07E00]
+        eve_opt = [7.76E14, 1.23E14, 1.86E01]
+        eve_ir = [1.32E14, 2.20E12, 6.07E00]
 
 
-        snr_optical = eve_opt[0] * eve_opt[1] * TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
+        #snr_optical = eve_opt[0] * eve_opt[1] * TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
+        snr_optical = eve_opt[0] *  TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
         snr_optical *= snr_optical_scalar
 
         if snr_optical > 297.7: ### saturation
@@ -275,7 +276,8 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         if snr_optical < 0.1:### so it doesn't go below 0
             snr_optical = 0.1 
 
-        snr_IR = eve_ir[0] * eve_ir[1] * TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
+        #snr_IR = eve_ir[0] * eve_ir[1] * TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
+        snr_IR = eve_ir[0] *  TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
         snr_IR *= snr_ir_scalar
 
         if snr_IR < 0.1:
