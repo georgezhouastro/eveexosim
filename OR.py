@@ -161,7 +161,7 @@ if __name__ == "__main__":
     stars_sigma = stars_sigma_df.to_dict('records')
     
     periodaxis = np.linspace(np.log10(1), np.log10(20), 5)
-    radiusaxis = np.linspace(np.log10(1), np.log10(50), 5)
+    radiusaxis = np.linspace(np.log10(3), np.log10(50), 5)
     
     n_periods = len(periodaxis) - 1
     n_radii = len(radiusaxis) - 1
