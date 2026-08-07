@@ -44,7 +44,7 @@ def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None):
         targetfields = pd.DataFrame({"FieldRA": [custom_ra], "FieldDEC": [custom_dec]})
     else:
         #targetfields = pd.read_csv("targetregions_simplified_20260611.csv")
-        targetfields = pd.read_csv("targetregions_23fields_20260709.csv")
+        targetfields = pd.read_csv("targetregions_16fields_20260709.csv")
         print(targetfields)
         targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
         targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
@@ -586,7 +586,7 @@ if __name__ == "__main__":
         "orion_rms": "roquette_rms.csv",
         "master_list": "Jan25_masterlist_roquette.csv",
         "synthetic_planets": "GasDwarfs_EVE_April_8.csv",
-        "output_dir_base": "gasdwarf_sim2"
+        "output_dir_base": "gasdwarf_sim"
     }
 
     import argparse
