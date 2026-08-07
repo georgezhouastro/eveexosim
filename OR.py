@@ -209,7 +209,7 @@ if __name__ == "__main__":
                 
             err[i, j] = (k - err_k) / exp 
 
-    goodgrid = expected_planets > 1 
+    goodgrid = expected_planets > 30
     #goodgrid *= observed_planets > 0
 
     total_occurrence = np.sum(occurrence_rate[goodgrid])
@@ -219,14 +219,22 @@ if __name__ == "__main__":
     
     print(f"\nTotal Occurrence Rate: {total_occurrence:.4f} +/-{total_err:.4f}")
 
-    fig, ax = plt.subplots(figsize=(10, 8))
+    occurrence_rate *= 100
+    err *= 100
+    total_occurrence *= 100
+    total_err *= 100
+
+    fig, ax = plt.subplots(figsize=(5, 4))
     
     extent = [periodaxis[0], periodaxis[-1], radiusaxis[0], radiusaxis[-1]]
     occurrence_rate[np.invert(goodgrid)] = np.nan
-    im = ax.imshow(occurrence_rate, origin='lower', aspect='auto', cmap='viridis', extent=extent)
+    
+    im = ax.imshow(occurrence_rate, origin='lower', aspect='auto', cmap='Oranges', extent=extent)
     
     cbar = fig.colorbar(im, ax=ax)
-    cbar.set_label('Occurrence Rate (Planets / Star)')
+    cbar.set_label('Planets per 100 Stars')
+    
+    csv_data = []
     
     for i in range(n_radii):
         for j in range(n_periods):
@@ -235,20 +243,43 @@ if __name__ == "__main__":
             
             rate_val = occurrence_rate[i, j]
             err_val = err[i, j]
-            obs_val = int(observed_planets[i, j])
-            exp_val = expected_planets[i, j]
             
-            cell_text = f"{rate_val:.3f} +/-{err_val:.3f}"
+            # Calculate linear boundaries for the CSV
+            p_min = int(round(10**periodaxis[j]))
+            p_max = int(round(10**periodaxis[j+1]))
+            r_min = int(round(10**radiusaxis[i]))
+            r_max = int(round(10**radiusaxis[i+1]))
             
-            text_color = 'white' if rate_val < (np.max(occurrence_rate) / 2) else 'black'
+            csv_data.append({
+                'Period_min_days': p_min,
+                'Period_max_days': p_max,
+                'Radius_min_earth': r_min,
+                'Radius_max_earth': r_max,
+                'Planets_per_100_stars': rate_val,
+                'Error': err_val
+            })
             
-            ax.text(x_center, y_center, cell_text, ha='center', va='center', color=text_color, fontsize=9)
+            # Adjusted decimal points to .1f since values are scaled by 100
+            cell_text = f"{rate_val:.1f}\n+/-{err_val:.1f}"
             
-    ax.set_xlabel("log10 period")
-    ax.set_ylabel("log10 radius")
-    ax.set_title(f"Planet Occurrence Rate\nTotal Rate = {total_occurrence:.3f} +/-{total_err:.3f} planets/star")
+            ax.text(x_center, y_center, cell_text, ha='center', va='center', color='k', fontsize=8)
+            
+    ax.set_xticks(periodaxis)
+    ax.set_xticklabels([str(int(round(10**p))) for p in periodaxis])
+    
+    ax.set_yticks(radiusaxis)
+    ax.set_yticklabels([str(int(round(10**r))) for r in radiusaxis])
+            
+    ax.set_xlabel("Period [days]")
+    ax.set_ylabel("Radius [Earth Radii]")
+    ax.set_title(f"Planet Occurrence Rate\nTotal = {total_occurrence:.1f} +/-{total_err:.1f} planets / 100 stars", fontsize=10)
     
     plt.tight_layout()
     plt.show()
+
+    df_out = pd.DataFrame(csv_data)
+    df_out.to_csv("occurrence_rate_table.csv", index=False)
+
+
 
 
