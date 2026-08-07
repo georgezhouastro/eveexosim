@@ -331,6 +331,8 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
 
         sigma_optical *= sigma_scaler
         sigma_IR *= sigma_scaler
+        results['sigmaOptical'][i] = sigma_optical
+        results['sigmaIR'][i] = sigma_IR
 
         # Geometrical Transit Probability (Independent of Visits)
         a = (p * 24 * 3600 * np.sqrt(G_CONST * M_SUN * mstar) / (2 * np.pi))**(2/3.0)
@@ -388,8 +390,6 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
                 # Save base observables on first valid visit setup to prevent overwriting
                 if v == 1:
                     results['delta'][i] = delta
-                    results['sigmaOptical'][i] = sigma_optical
-                    results['sigmaIR'][i] = sigma_IR
 
             # Save the parameters scaling with the maximum baseline observed
             results['npoints'][i] = npoints
@@ -442,7 +442,6 @@ def run_simulation_suite(baseline, FILE_PATHS, useUV=True, useIR=True, fov=5, ps
     stars_cols = ['tic', 'sigmaOptical', 'sigmaIR', 'mstar', 'rstar', 'teff','age','tmag']
     stars_df = final_df.drop_duplicates('tic')[stars_cols].copy()
     stars_df['baseline'] = baseline # Broadcast the baseline scalar to all rows
-    print(os.path.join(folder_name, "stars_0.csv"))
     stars_df.to_csv(os.path.join(folder_name, "stars_0.csv"), index=False)
     
     # 3. Extract and save all simulated planets

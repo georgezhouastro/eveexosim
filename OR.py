@@ -107,12 +107,15 @@ def calc_transit_snr(period,mstar,rstar,rp,b,baseline,sigma):
 
 def computesnr(period,radius,star):
     sigmaOptical,sigmaIR,baseline = star['sigmaOptical'],star['sigmaIR'],star['baseline']
-    sigma = np.sqrt(sigmaOptical**2 + sigmaIR**2)/2
     delta = (radius*rearth / (star['rstar']*rsun))**2
     
-    snr_tuple = calc_transit_snr(period,star['mstar'],star['rstar'],radius,1,baseline,sigma)
-    snr = snr_tuple[0]
-    tr_prob = 1/snr_tuple[-1]
+    snr_opt_tuple = calc_transit_snr(period,star['mstar'],star['rstar'],radius,1,baseline,sigmaOptical)
+    snr_IR_tuple = calc_transit_snr(period,star['mstar'],star['rstar'],radius,1,baseline,sigmaIR)
+
+    snr = np.sqrt(snr_opt_tuple[0]**2 + snr_IR_tuple[0]**2)
+
+
+    tr_prob = 1/snr_opt_tuple[-1]
     rec_prob = redo_recovery(star, snr)*tr_prob
 
     return rec_prob
@@ -145,7 +148,7 @@ if __name__ == "__main__":
     stars_sigma_df = pd.read_csv(args.starsfile)
     stars_sigma = stars_sigma_df.to_dict('records')
     
-    periodaxis = np.linspace(np.log10(1), np.log10(20), 10)
+    periodaxis = np.linspace(np.log10(1), np.log10(20), 5)
     radiusaxis = np.linspace(np.log10(3), np.log10(50), 5)
     
     n_periods = len(periodaxis) - 1
@@ -176,12 +179,12 @@ if __name__ == "__main__":
     observed_planets = observed_planets.T 
     
     occurrence_rate = np.zeros_like(expected_planets)
-    err_up = np.zeros_like(expected_planets)
-    err_down = np.zeros_like(expected_planets)
+    err = np.zeros_like(expected_planets)
     
     mask = expected_planets > 0
     occurrence_rate[mask] = observed_planets[mask] / expected_planets[mask]
-    
+    print('total number of expected planets if every star had a planet in each grid point',np.sum(expected_planets))
+
     alpha = 1 - 0.682689
     
     for i in range(n_radii):
@@ -193,24 +196,23 @@ if __name__ == "__main__":
                 continue
 
             if k == 0:
-                lower_k = 0
+                err_k = 0
             else:
-                lower_k = chi2.ppf(alpha / 2, 2 * k) / 2
+                err_k = chi2.ppf(alpha / 2, 2 * k) / 2
                 
-            upper_k = chi2.ppf(1 - (alpha / 2), 2 * (k + 1)) / 2
-            
-            err_down[i, j] = (k - lower_k) / exp
-            err_up[i, j] = (upper_k - k) / exp
+            err[i, j] = (k - err_k) / exp 
 
-    total_occurrence = np.sum(occurrence_rate)
-    total_err_down = np.sqrt(np.sum(err_down**2))
-    total_err_up = np.sqrt(np.sum(err_up**2))
+    goodgrid = expected_planets > 30
     
-    print(f"\nTotal Occurrence Rate: {total_occurrence:.4f} (+{total_err_up:.4f} / -{total_err_down:.4f})")
+    total_occurrence = np.sum(occurrence_rate[goodgrid])
+    total_err = np.sqrt(np.sum(err[goodgrid]**2))
     
+    print(f"\nTotal Occurrence Rate: {total_occurrence:.4f} (+/-{total_err:.4f}")
+
     fig, ax = plt.subplots(figsize=(10, 8))
     
     extent = [periodaxis[0], periodaxis[-1], radiusaxis[0], radiusaxis[-1]]
+    occurrence_rate[np.invert(goodgrid)] = np.nan
     im = ax.imshow(occurrence_rate, origin='lower', aspect='auto', cmap='viridis', extent=extent)
     
     cbar = fig.colorbar(im, ax=ax)
@@ -222,12 +224,11 @@ if __name__ == "__main__":
             y_center = (radiusaxis[i] + radiusaxis[i+1]) / 2.0
             
             rate_val = occurrence_rate[i, j]
-            up_val = err_up[i, j]
-            down_val = err_down[i, j]
+            err_val = err[i, j]
             obs_val = int(observed_planets[i, j])
             exp_val = expected_planets[i, j]
             
-            cell_text = f"{rate_val:.3f}$^{{+{up_val:.3f}}}_{{-{down_val:.3f}}}$\n({obs_val}/{exp_val:.1f})"
+            cell_text = f"{rate_val:.3f} +/-{err_val:.3f}"
             
             text_color = 'white' if rate_val < (np.max(occurrence_rate) / 2) else 'black'
             
@@ -235,7 +236,7 @@ if __name__ == "__main__":
             
     ax.set_xlabel("log10 period")
     ax.set_ylabel("log10 radius")
-    ax.set_title(f"Planet Occurrence Rate\nTotal Rate = {total_occurrence:.3f} +{total_err_up:.3f}/-{total_err_down:.3f} planets/star")
+    ax.set_title(f"Planet Occurrence Rate\nTotal Rate = {total_occurrence:.3f} +/-{total_err:.3f} planets/star")
     
     plt.tight_layout()
     plt.show()
