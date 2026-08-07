@@ -1,11 +1,12 @@
 import os,sys
-import pandas
+import pandas as pd
 from scipy import optimize
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.stats import chi2
 
 import readsnr
-snrcurves_conservative = readsnr.readsnr_conservative() # Fixed variable name to match usage
+snrcurves_conservative = readsnr.readsnr_conservative() 
 snrcurves_optimistic = readsnr.readsnr_optimistic()
 
 rearth = 6.37e6
@@ -13,7 +14,6 @@ msun = 2e30
 rsun = 696340000.
 G = 6.67e-11
 
-# Added np. to array, polyfit, and log10
 teff_UV = np.array([[6000,3000],[2e-2,7e-5]])
 teff_UV = np.polyfit(teff_UV[0],np.log10(teff_UV[1]),1)
 
@@ -33,7 +33,6 @@ K_2MASS_zpt = float(str.split(str(K_2MASS_zpt)," ")[0])
 tess_zpt = float(str.split(str(tess_zpt)," ")[0])
 
 def UVdetectable(star):
-    # Added np. to polyval
     UV = 10**np.polyval(teff_UV,star['teff'])
     TESS_FLUX = 10**(star['tmag']/-2.5)*tess_zpt*4000
     return UV*TESS_FLUX > 5e-13
@@ -76,7 +75,6 @@ def redo_recovery(entry,snr):
         snrselect = snrcurves['snr_100myr_f']
 
     try:
-        # Added np. to argmin and abs
         indx = np.argmin(np.abs(snrselect['bins']-snr))
         rec_prob = snrselect['spoc_snr'].iloc[indx]
     except UnboundLocalError:
@@ -112,7 +110,6 @@ def computesnr(period,radius,star):
     sigma = np.sqrt(sigmaOptical**2 + sigmaIR**2)/2
     delta = (radius*rearth / (star['rstar']*rsun))**2
     
-    # Grab just the snr value from the returned tuple
     snr_tuple = calc_transit_snr(period,star['mstar'],star['rstar'],radius,1,baseline,sigma)
     snr = snr_tuple[0]
     tr_prob = 1/snr_tuple[-1]
@@ -125,25 +122,14 @@ def gridpoint(periodmin,periodmax,radiusmin,radiusmax,stars_sigma):
     rec_stars = 0
     for star in stars_sigma:
         period = np.exp(np.random.uniform(np.log(periodmin),np.log(periodmax)))
-        # Fixed typo: radiusin -> radiusmin
         radius = np.exp(np.random.uniform(np.log(radiusmin),np.log(radiusmax)))
 
         rec_prob = computesnr(period,radius,star)
         rec_stars += rec_prob
 
-    # Fixed bug: return rec_stars instead of rec_prob
     return rec_stars
 
 
-
-
-import os, sys
-import pandas as pd # Changed to pd for convention
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.stats import chi2
-
-# (Assuming gridpoint, readsnr, pyphot, etc., are defined as before above this block)
 
 if __name__ == "__main__":
 
@@ -156,11 +142,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     
-    # --- 1. Load Expected Star/Planet Setup ---
     stars_sigma_df = pd.read_csv(args.starsfile)
     stars_sigma = stars_sigma_df.to_dict('records')
     
-    periodaxis = np.linspace(np.log10(1), np.log10(20), 5)
+    periodaxis = np.linspace(np.log10(1), np.log10(20), 10)
     radiusaxis = np.linspace(np.log10(3), np.log10(50), 5)
     
     n_periods = len(periodaxis) - 1
@@ -168,7 +153,6 @@ if __name__ == "__main__":
     
     expected_planets = np.zeros((n_radii, n_periods))
     
-    # Calculate Expected Planets
     print("Computing expected planets...")
     for i in range(n_radii):
         for j in range(n_periods):
@@ -179,7 +163,6 @@ if __name__ == "__main__":
             
             expected_planets[i, j] = gridpoint(p_min, p_max, r_min, r_max, stars_sigma)
             
-    # --- 2. Load Observed Planets and Bin Them ---
     planet_list_df = pd.read_csv(args.planetsfile)
     
     log_per_obs = np.log10(planet_list_df['period'])
@@ -192,7 +175,6 @@ if __name__ == "__main__":
     )
     observed_planets = observed_planets.T 
     
-    # --- 3. Compute Occurrence Rate and Exact Asymmetric Errors ---
     occurrence_rate = np.zeros_like(expected_planets)
     err_up = np.zeros_like(expected_planets)
     err_down = np.zeros_like(expected_planets)
@@ -200,10 +182,8 @@ if __name__ == "__main__":
     mask = expected_planets > 0
     occurrence_rate[mask] = observed_planets[mask] / expected_planets[mask]
     
-    # 1-sigma (68.27%) probability tails
     alpha = 1 - 0.682689
     
-    # Loop to apply exact confidence intervals to each grid
     for i in range(n_radii):
         for j in range(n_periods):
             k = observed_planets[i, j]
@@ -211,29 +191,23 @@ if __name__ == "__main__":
             
             if exp == 0:
                 continue
-                
-            # Exact Poisson confidence intervals (Chi-square distribution)
-            # Lower limit: 0 if k=0, else derived from chi2
+
             if k == 0:
                 lower_k = 0
             else:
                 lower_k = chi2.ppf(alpha / 2, 2 * k) / 2
                 
-            # Upper limit
             upper_k = chi2.ppf(1 - (alpha / 2), 2 * (k + 1)) / 2
             
-            # Convert count bounds to rate bounds
             err_down[i, j] = (k - lower_k) / exp
             err_up[i, j] = (upper_k - k) / exp
 
-    # Total rate and propagated errors
     total_occurrence = np.sum(occurrence_rate)
     total_err_down = np.sqrt(np.sum(err_down**2))
     total_err_up = np.sqrt(np.sum(err_up**2))
     
     print(f"\nTotal Occurrence Rate: {total_occurrence:.4f} (+{total_err_up:.4f} / -{total_err_down:.4f})")
     
-    # --- 4. Plotting ---
     fig, ax = plt.subplots(figsize=(10, 8))
     
     extent = [periodaxis[0], periodaxis[-1], radiusaxis[0], radiusaxis[-1]]
@@ -242,7 +216,6 @@ if __name__ == "__main__":
     cbar = fig.colorbar(im, ax=ax)
     cbar.set_label('Occurrence Rate (Planets / Star)')
     
-    # Add text over each cell showing Rate +up/-down and (Obs / Exp)
     for i in range(n_radii):
         for j in range(n_periods):
             x_center = (periodaxis[j] + periodaxis[j+1]) / 2.0
@@ -254,10 +227,8 @@ if __name__ == "__main__":
             obs_val = int(observed_planets[i, j])
             exp_val = expected_planets[i, j]
             
-            # Formatted text: 0.15 +0.06/-0.03 \n (3 / 20.1)
             cell_text = f"{rate_val:.3f}$^{{+{up_val:.3f}}}_{{-{down_val:.3f}}}$\n({obs_val}/{exp_val:.1f})"
             
-            # Switch text color for visibility depending on the background brightness
             text_color = 'white' if rate_val < (np.max(occurrence_rate) / 2) else 'black'
             
             ax.text(x_center, y_center, cell_text, ha='center', va='center', color=text_color, fontsize=9)
