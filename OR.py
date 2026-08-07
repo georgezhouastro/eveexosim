@@ -272,7 +272,7 @@ if __name__ == "__main__":
             
     ax.set_xlabel("Period [days]")
     ax.set_ylabel("Radius [Earth Radii]")
-    ax.set_title(f"Planet Occurrence Rate\nTotal = {total_occurrence:.1f} +/-{total_err:.1f} planets / 100 stars", fontsize=10)
+    ax.set_title(f"Total = {total_occurrence:.1f} +/-{total_err:.1f} planets / 100 stars", fontsize=10)
     
     plt.tight_layout()
     plt.show()
