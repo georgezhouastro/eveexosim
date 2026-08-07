@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from astroquery.mast import Catalogs
+fixed_planetORrate = 0.7
 
 os.environ["MINIMINT_DATA_PATH"] = "MINIMINT_DATA"
 import minimint
@@ -211,7 +212,8 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
     masterlist = master_raw.drop_duplicates('tic')
     synthetic = synthetic_raw.copy()
     synthetic['tic'] = pd.to_numeric(synthetic['tic'])
-    synthetic = synthetic.drop_duplicates('tic').sample(frac=0.7) 
+    #synthetic = synthetic.drop_duplicates('tic').sample(frac=0.7) 
+    synthetic = synthetic.drop_duplicates('tic')
 
     df = synthetic.merge(masterlist, on='tic', suffixes=('', '_y'))
     df, tic_catalog_list = prepareinputfields(df, fov=fov, custom_ra=custom_ra, custom_dec=custom_dec)
@@ -230,6 +232,8 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         'sigmaIR': np.full(len(df), np.nan),
         'npoints': np.full(len(df), np.nan),
         'ntransits': np.full(len(df), np.nan),
+        'rec_prob': np.full(len(df), np.nan),
+        'tr_prob': np.full(len(df), np.nan),
         'draw': np.full(len(df), np.nan),
         'T_retrieve_final': np.zeros(len(df), dtype=int)
     }
@@ -243,6 +247,10 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         teff, mstar, rstar = row.teff, row.mstar, row.rstar
         tmag, age = row.tmag, row.age
         p, rp = row.per, row.prad
+
+        if np.random.uniform(0,1) > fixed_planetORrate:
+            p,rp = np.nan,np.nan
+        
         obs_fields = row.observed_fields
         nobs = row.nobs
 
@@ -338,6 +346,9 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         a = (p * 24 * 3600 * np.sqrt(G_CONST * M_SUN * mstar) / (2 * np.pi))**(2/3.0)
         ars = a / (R_SUN * rstar)
         trprob = 1 / ars
+        results['pl_period'][i] = p
+        results['pl_radius'][i] = rp
+        results['tr_prob'][i] = trprob
 
         if np.random.uniform(0, 1) < trprob:
             b = np.random.uniform(0, 1)
@@ -346,8 +357,6 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
             rec_draw = np.random.uniform(0, 1)
             
             results['draw'][i] = rec_draw
-            results['pl_period'][i] = p
-            results['pl_radius'][i] = rp
 
             dilution = determinedilution(df, i, tic_catalog_list[obs_fields[-1]], psf=psf)
 
@@ -377,6 +386,9 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
                     rec_prob = snr_select['spoc_snr'].iloc[indx]
                 except Exception:
                     rec_prob = 0
+                
+
+                results['rec_prob'] = rec_prob
 
                 is_retrieved = 1 if rec_draw < rec_prob else 0
                 
@@ -574,7 +586,7 @@ if __name__ == "__main__":
         "orion_rms": "roquette_rms.csv",
         "master_list": "Jan25_masterlist_roquette.csv",
         "synthetic_planets": "GasDwarfs_EVE_April_8.csv",
-        "output_dir_base": "gasdwarf_sim"
+        "output_dir_base": "gasdwarf_sim2"
     }
 
     import argparse

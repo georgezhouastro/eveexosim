@@ -146,16 +146,15 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description="Occurrence rate calculations")
     
-    parser.add_argument("--planetsfile", type=str, default='gasdwarf_sim/baseline_45d/planets_0.csv', help="list of input planets")
-    parser.add_argument("--starsfile", type=str, default='gasdwarf_sim/baseline_45d/stars_0.csv', help="list of input stars")
+    parser.add_argument("--simfile", type=str, default='gasdwarf_sim/baseline_45d/0.csv', help="list of input sim")
     args = parser.parse_args()
 
     
-    stars_sigma_df = pd.read_csv(args.starsfile)
+    stars_sigma_df = pd.read_csv(args.simfile)
     stars_sigma = stars_sigma_df.to_dict('records')
     
     periodaxis = np.linspace(np.log10(1), np.log10(20), 5)
-    radiusaxis = np.linspace(np.log10(4), np.log10(50), 5)
+    radiusaxis = np.linspace(np.log10(3), np.log10(50), 5)
     
     n_periods = len(periodaxis) - 1
     n_radii = len(radiusaxis) - 1
@@ -173,8 +172,7 @@ if __name__ == "__main__":
             expected_planets[i, j] = gridpoint(p_min, p_max, r_min, r_max, stars_sigma)
             print('computed for period radius',10**periodaxis[j],10**radiusaxis[i])
             
-    planet_list_df = pd.read_csv(args.planetsfile)
-    
+    planet_list = 
     log_per_obs = np.log10(planet_list_df['period'])
     log_rp_obs = np.log10(planet_list_df['rp'])
     
@@ -209,8 +207,8 @@ if __name__ == "__main__":
                 
             err[i, j] = (k - err_k) / exp 
 
-    goodgrid = expected_planets > 1 
-    #goodgrid *= observed_planets > 0
+    goodgrid = expected_planets > 30 
+    goodgrid *= observed_planets > 0
 
     total_occurrence = np.sum(occurrence_rate[goodgrid])
     total_err = np.sqrt(np.sum(err[goodgrid]**2))
