@@ -43,7 +43,7 @@ def prepareinputfields(df, fov=5.0, custom_ra=None, custom_dec=None):
         targetfields = pd.DataFrame({"FieldRA": [custom_ra], "FieldDEC": [custom_dec]})
     else:
         #targetfields = pd.read_csv("targetregions_simplified_20260611.csv")
-        targetfields = pd.read_csv("targetregions_23fields_20260709.csv")
+        targetfields = pd.read_csv("targetregions_16fields_20260709.csv")
         print(targetfields)
         targetfields['FieldRA'] = pd.to_numeric(targetfields['FieldRA'], errors='coerce')
         targetfields['FieldDEC'] = pd.to_numeric(targetfields['FieldDEC'], errors='coerce')
@@ -246,6 +246,9 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         obs_fields = row.observed_fields
         nobs = row.nobs
 
+        #if rp > 20:
+        #    rp = np.exp(np.random.uniform(np.log(4),np.log(20)))
+
         TESS_flux = 10**(tmag / -2.5) * ZPT['TESS'] * 4000
 
         # """
@@ -258,27 +261,49 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
         # eve_ir = [5.16, 1.39e14, 441.0]
 
 
-        """ The updated exo formula given flux in erg/s/cm2
-        SNR = a*flux / sqrt(b*flux + c)
-        VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
-        NIR: a = 5.16, b = 1.39e14, c = 441.0
-        """
-        eve_opt = [7.76E14, 1.23E14, 1.86E01]
-        eve_ir = [1.32E14, 2.20E12, 6.07E00]
+        if False: ### old 
+
+            """ The updated exo formula given flux in erg/s/cm2
+            SNR = a*flux / sqrt(b*flux + c)
+            VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
+            NIR: a = 5.16, b = 1.39e14, c = 441.0
+            """
+            eve_opt = [7.76E14, 1.23E14, 1.86E01]
+            eve_ir = [1.32E14, 2.20E12, 6.07E00]
 
 
-        #snr_optical = eve_opt[0] * eve_opt[1] * TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
-        snr_optical = eve_opt[0] *  TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
-        snr_optical *= snr_optical_scalar
+            #snr_optical = eve_opt[0] * eve_opt[1] * TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
+            snr_optical = eve_opt[0] *  TESS_flux / np.sqrt(eve_opt[1]*TESS_flux + eve_opt[2])
+            snr_optical *= snr_optical_scalar
 
-        if snr_optical > 297.7: ### saturation
-            snr_optical = 297.7
-        if snr_optical < 0.1:### so it doesn't go below 0
-            snr_optical = 0.1 
+            if snr_optical > 297.7: ### saturation
+                snr_optical = 297.7
+            if snr_optical < 0.1:### so it doesn't go below 0
+                snr_optical = 0.1 
 
-        #snr_IR = eve_ir[0] * eve_ir[1] * TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
-        snr_IR = eve_ir[0] *  TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
-        snr_IR *= snr_ir_scalar
+            #snr_IR = eve_ir[0] * eve_ir[1] * TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
+            snr_IR = eve_ir[0] *  TESS_flux / np.sqrt(eve_ir[1]*TESS_flux + eve_ir[2])
+            snr_IR *= snr_ir_scalar
+
+        if True: ### new
+            """
+            SNR = a*flux / sqrt(b*flux + c)
+            VIs: a = 4.22, b = 1.45e14, c = 49.05 (sensitivity) or 297.7 (dyn. range)
+            NIR: a = 5.16, b = 1.39e14, c = 441.0
+            """
+            eve_opt = [7.76E14, 1.23E14, 1.86E01]
+            eve_ir = [1.32E14, 2.20E12, 6.07E00]
+
+            snr_optical = eve_opt[0] * TESS_flux / np.sqrt(eve_opt[1] * TESS_flux + eve_opt[2])
+            snr_optical *= snr_optical_scalar
+            if snr_optical > 297.7:
+                snr_optical = 297.7
+            if snr_optical < 0.1:
+                snr_optical = 0.1
+
+            snr_IR = eve_ir[0] * TESS_flux / np.sqrt(eve_ir[1] * TESS_flux + eve_ir[2])
+            snr_IR *= snr_ir_scalar
+
 
         if snr_IR < 0.1:
             snr_IR = 0.1
@@ -377,6 +402,7 @@ def draw_planet(baseline, master_raw, synthetic_raw, interpolator_pack, useUV=Tr
     return df
 
 
+
 def run_simulation_suite(baseline, FILE_PATHS, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None, snr_optical_scalar=1.0, snr_ir_scalar=1.0):
     spoc_df = pd.read_csv(FILE_PATHS["spoc_rms"])
     orion_df = pd.read_csv(FILE_PATHS["orion_rms"])
@@ -404,10 +430,63 @@ def run_simulation_suite(baseline, FILE_PATHS, useUV=True, useIR=True, fov=5, ps
         custom_ra=custom_ra, custom_dec=custom_dec,
         snr_optical_scalar=snr_optical_scalar, snr_ir_scalar=snr_ir_scalar
     )
-    final_df.to_csv(os.path.join(folder_name, f"0.csv"), index=False)
+    
+    # 1. Save standard primary output
+    main_output_path = os.path.join(folder_name, f"0.csv")
+    final_df.to_csv(main_output_path, index=False)
+    
+    final_df = final_df[final_df['age'] < 50]
+
+    # 2. Extract and save unique stars within the field
+    # Dropping duplicates by TIC ID to get one row per star
+    stars_cols = ['tic', 'sigmaOptical', 'sigmaIR', 'mstar', 'rstar', 'teff','age','tmag']
+    stars_df = final_df.drop_duplicates('tic')[stars_cols].copy()
+    stars_df['baseline'] = baseline # Broadcast the baseline scalar to all rows
+    print(os.path.join(folder_name, "stars_0.csv"))
+    stars_df.to_csv(os.path.join(folder_name, "stars_0.csv"), index=False)
+    
+    # 3. Extract and save all simulated planets
+    planets_cols = ['tic', 'pl_radius', 'pl_period', 'mstar', 'rstar', 'tmag', 'teff','age']
+    planets_df = final_df[final_df['T_retrieve_final']==1][planets_cols].copy()
+    # Rename variables to match your requested format
+    planets_df.rename(columns={'pl_radius': 'rp', 'pl_period': 'period'}, inplace=True)
+    planets_df.to_csv(os.path.join(folder_name, "planets_0.csv"), index=False)
                 
-    print("Simulations complete!")
-    return os.path.join(folder_name, f"0.csv")
+    print("Simulations complete! Generated main, stars, and planets datasets.")
+    return main_output_path
+
+
+# def run_simulation_suite(baseline, FILE_PATHS, useUV=True, useIR=True, fov=5, psf=10, custom_ra=None, custom_dec=None, snr_optical_scalar=1.0, snr_ir_scalar=1.0):
+#     spoc_df = pd.read_csv(FILE_PATHS["spoc_rms"])
+#     orion_df = pd.read_csv(FILE_PATHS["orion_rms"])
+#     orion_df['age'] = 10
+    
+#     master_raw = pd.read_csv(FILE_PATHS["master_list"])
+#     synthetic_raw = pd.read_csv(FILE_PATHS["synthetic_planets"])
+
+#     print("Load snr curve")
+    
+#     interpolator_pack = prepare_rms_interpolators(spoc_df, orion_df)
+
+#     base_out = FILE_PATHS["output_dir_base"]
+#     os.makedirs(base_out, exist_ok=True)
+#     folder_name = f"{base_out}/baseline_{int(baseline)}d"
+#     os.makedirs(folder_name, exist_ok=True)
+
+#     print(f"Running scenario: {baseline} days")
+#     final_df = draw_planet(
+#         baseline=baseline, 
+#         master_raw=master_raw, 
+#         synthetic_raw=synthetic_raw, 
+#         interpolator_pack=interpolator_pack,
+#         useUV=useUV, useIR=useIR, fov=fov, psf=psf,
+#         custom_ra=custom_ra, custom_dec=custom_dec,
+#         snr_optical_scalar=snr_optical_scalar, snr_ir_scalar=snr_ir_scalar
+#     )
+#     final_df.to_csv(os.path.join(folder_name, f"0.csv"), index=False)
+                
+#     print("Simulations complete!")
+#     return os.path.join(folder_name, f"0.csv")
     
 
 def simulation_summary(filepath):
